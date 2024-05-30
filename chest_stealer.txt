@@ -1,0 +1,70 @@
+   private NumberSetting delay = new NumberSetting("Delay", 0, 1000, 5, 1, () -> Boolean.TRUE);
+    private BooleanSetting autoDisable = new BooleanSetting("AutoDisable", true, () -> Boolean.TRUE);
+    private BooleanSetting autoClose = new BooleanSetting("Auto Close", false, () -> Boolean.TRUE);
+    private BooleanSetting autoLeave = new BooleanSetting("Auto Leave", false, () -> Boolean.TRUE);
+    public ChestStealer() {
+        super("ChestStealer", FunctionCategory.Misc);
+        addSettings(delay, autoDisable, autoClose, autoLeave);
+    }
+
+    @EventTarget
+    public void onPlayerTick(PlayerTick event) {
+        if (mc.currentScreen == null) {
+            return;
+        }
+
+        if (mc.currentScreen instanceof ChestScreen chest) {
+            if (this.isToggled()) {
+                for (int index = 0; index < chest.getContainer().inventorySlots.size(); ++index) {
+                    ItemStack stack = chest.getContainer().getLowerChestInventory().getStackInSlot(index);
+                    ChestContainer container = (ChestContainer) mc.player.openContainer;
+                    if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE || stack.getItem() == Items.RED_STAINED_GLASS_PANE)
+                        return;
+                    if (!isWhiteItem(stack))
+                        continue;
+
+                    String title = chest.getTitle().getString().toLowerCase(Locale.ROOT);
+
+                    if (timer.hasPassed(delay.getValue()) && !title.contains("аукционы")) {
+                        mc.playerController.windowClick(container.windowId, index, 0, ClickType.QUICK_MOVE, mc.player);
+                        timer.updateLastTime();
+                    }
+                }
+
+                List<ItemStack> emptyOrUnnecessaryStacks = getEmptyOrUnnecessaryStacks(chest);
+
+                if (!emptyOrUnnecessaryStacks.isEmpty()) {
+                    if (autoClose.isEnabled()) {
+                        mc.player.closeScreen();
+                        chat.sendMessage("Successfully closed chest!");
+                    }
+
+                    if (autoLeave.isEnabled()) {
+                        mc.player.sendChatMessage("/spawn");
+                        chat.sendMessage("Successfully leaved to spawn!");
+                    }
+
+                    if (autoDisable.isEnabled()) {
+                        disable();
+                        if (Nova.Instance.funcManager.getFunction(RemoveHitboxes.class).isToggled())
+                            Nova.Instance.funcManager.getFunction(RemoveHitboxes.class).disable();
+                        chat.sendMessage("Successfully disabled functions!");
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean isWhiteItem(ItemStack itemStack) {
+        return itemStack.getItem() instanceof ArmorItem || itemStack.getItem() instanceof EnderPearlItem || itemStack.getItem() instanceof SwordItem || itemStack.getItem() instanceof ToolItem || itemStack.getItem() instanceof PotionItem || itemStack.getItem() instanceof BlockItem || itemStack.getItem() instanceof ArrowItem || itemStack.getItem() instanceof CompassItem || itemStack.getItem().isFood() || itemStack.getItem() == Items.TOTEM_OF_UNDYING || itemStack.getItem() == Items.PLAYER_HEAD || itemStack.getItem() == Items.ELYTRA || itemStack.getItem() == Items.NETHERITE_INGOT || itemStack.getItem() == Items.NETHERITE_SCRAP || itemStack.getItem() instanceof EnchantedBookItem || itemStack.getItem() instanceof SpawnEggItem;
+    }
+
+    private List<ItemStack> getEmptyOrUnnecessaryStacks(ChestScreen container) {
+        List<ItemStack> emptyOrUnnecessaryStacks = new ArrayList<>();
+        for (int i = 0; i < container.getContainer().inventorySlots.size(); ++i) {
+            if (container.getContainer().getLowerChestInventory().getStackInSlot(i).isEmpty() && !isWhiteItem(container.getContainer().getLowerChestInventory().getStackInSlot(i)))
+                emptyOrUnnecessaryStacks.add(container.getContainer().getLowerChestInventory().getStackInSlot(i));
+        }
+
+        return emptyOrUnnecessaryStacks;
+    }
